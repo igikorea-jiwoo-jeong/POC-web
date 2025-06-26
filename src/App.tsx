@@ -1,9 +1,9 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import './App.css';
-import ChatBot from './components/chatbot';
-import GlbLoader from './components/glbLoader';
 import React, { useState } from 'react';
+import ChatBot from './components/ChatBot';
+import GlbLoader from './components/GlbLoader';
 
 const App = () => {
   const [animations, setAnimations] = useState<string[]>([]);
