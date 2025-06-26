@@ -45,7 +45,8 @@ const ChatBot = ({
     const reader = res.body?.getReader();
     const decoder = new TextDecoder('utf-8');
 
-    let fullReply = '';
+    let rawReply = ''; // 전체
+    let visibleReply = ''; // 애니메이션 제외
 
     setMessages((prev) => [
       ...prev,
@@ -70,35 +71,26 @@ const ChatBot = ({
         const parsed = JSON.parse(message);
         const delta = parsed.choices?.[0]?.delta?.content;
         if (delta) {
-          fullReply += delta;
+          rawReply += delta;
+          visibleReply = rawReply.split('[')?.[0];
 
           setMessages((prev) => {
             const updated = [...prev];
             const lastIndex = updated.length - 1;
             updated[lastIndex] = {
               ...updated[lastIndex],
-              content: fullReply,
+              content: visibleReply,
             };
             return updated;
           });
         }
+        await new Promise((res) => setTimeout(res, 50));
       }
     }
 
-    // 마지막에 애니메이션 추출
-    const animationMatch = fullReply.match(/\[animation:\s*(.*?)\]/i);
+    // 애니메이션 태그 추출
+    const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
     const animation = animationMatch ? animationMatch[1].trim() : null;
-    const cleanedReply = fullReply.replace(/\[animation:.*?\]/i, '').trim();
-
-    setMessages((prev) => {
-      const updated = [...prev];
-      const lastIndex = updated.length - 1;
-      updated[lastIndex] = {
-        ...updated[lastIndex],
-        content: cleanedReply,
-      };
-      return updated;
-    });
 
     setPlayAnimation(animation || null);
     setLoading(false);
