@@ -15,9 +15,12 @@ const ChatBot = ({
 
   const systemPrompt = {
     role: 'system',
-    content: `당신은 친절한 바리스타 AI입니다. 고객의 질문에 예의 바르게 답변하고, 가장 적절한 애니메이션 이름을 [animation: 애니메이션이름] 형식으로 답변 끝에 붙이세요. 가능한 애니메이션: ${animations.join(
-      ', '
-    )}. 예: "커피를 내려드릴게요! [animation: makeCoffee]"`,
+    content: `You are a friendly barista AI assistant.
+    Answer customer questions politely and always append the most appropriate animation name at the end of your response in this format: [animation: animation_name].
+    ⚠️ Important: You **must always** include the animation tag at the end of your response, even if it's just [animation: idle].
+    If no specific animation fits the context, use the default animation: idle.
+    Available animations: ${animations.join(', ')}.
+    Example: "I'll make your coffee right away! [animation: makeCoffee]"`,
   };
 
   const callGPT = async (prompt: string) => {
@@ -73,6 +76,7 @@ const ChatBot = ({
         if (delta) {
           rawReply += delta;
           visibleReply = rawReply.split('[')?.[0];
+          // console.log(rawReply);
 
           setMessages((prev) => {
             const updated = [...prev];
@@ -91,6 +95,8 @@ const ChatBot = ({
     // 애니메이션 태그 추출
     const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
     const animation = animationMatch ? animationMatch[1].trim() : null;
+
+    // console.log(animationMatch);
 
     setPlayAnimation(animation || null);
     setLoading(false);
