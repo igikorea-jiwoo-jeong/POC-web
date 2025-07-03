@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF, useAnimations, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Model } from './type';
 import { Euler, Vector3 } from 'three';
@@ -82,6 +82,24 @@ const GlbLoader = ({
       position={model.position ?? new Vector3(0, 0, 0)}
       rotation={model.rotation ?? new Euler(0, 0, 0)}
     >
+      {playAnimation && (
+        <Html position={[0, 1.7, 0]} center>
+          <p
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              whiteSpace: 'nowrap', // 줄 바꿈 방지
+              textAlign: 'center',
+              display: 'inline-block', // 블록처럼 행동하게끔
+            }}
+          >
+            현재 애니메이션 : {playAnimation}
+          </p>
+        </Html>
+      )}
       <primitive object={gltf.scene} name={model.name} />
     </group>
   );
