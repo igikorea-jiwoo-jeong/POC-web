@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 
 const ChatBot = ({
   animations,
@@ -14,10 +14,7 @@ const ChatBot = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    console.log(currentAnimation, 'currentAnimation');
-  }, [currentAnimation]);
+  const [responseTime, setResponseTime] = useState<number | null>(null); // ms 단위
 
   const playTTS = async (text: string) => {
     try {
@@ -96,6 +93,8 @@ Examples:
     setLoading(true);
 
     try {
+      const startTime = performance.now(); // 시작 시간 기록
+
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -151,6 +150,9 @@ Examples:
         }
       }
 
+      const endTime = performance.now();
+      setResponseTime(endTime - startTime);
+
       const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
       const animation = animationMatch ? animationMatch[1].trim() : null;
 
@@ -162,7 +164,10 @@ Examples:
       console.error('GPT 응답 처리 중 오류:', error);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다.' },
+        {
+          role: 'assistant',
+          content: '죄송합니다. 오류가 발생했습니다. 다시 입력해주세요.',
+        },
       ]);
       setLoading(false);
     }
@@ -180,6 +185,7 @@ Examples:
     setInput('');
     setCurrentAnimation(null);
     setPlayAnimation('idle');
+    setResponseTime(null);
   };
 
   return (
@@ -197,6 +203,12 @@ Examples:
               {msg.role}: {msg.content}
             </div>
           ))}
+        {responseTime !== null && (
+          <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
+            응답 시간: {(responseTime / 1000).toFixed(2)}초
+          </div>
+        )}
+
         {loading && <div className="chatbot-message assistant">로딩 중...</div>}
       </div>
 

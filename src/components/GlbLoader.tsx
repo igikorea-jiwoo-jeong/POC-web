@@ -66,9 +66,6 @@ const GlbLoader = ({
 
     Object.values(actions).forEach((a) => a?.stop());
 
-    console.log('playAnimation', playAnimation);
-    console.log('playAnimation', actions);
-
     if (actions[playAnimation]) {
       actions[playAnimation]?.reset().play();
     }
