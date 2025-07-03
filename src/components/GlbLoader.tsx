@@ -25,7 +25,32 @@ const GlbLoader = ({
   // 애니메이션 이름 목록 전달
   useEffect(() => {
     if (setAnimations) {
-      setAnimations(names);
+      setAnimations([
+        'idle',
+        'walk',
+        'sit',
+        'laugh',
+        'sad',
+        'clap',
+        'surprise',
+        'hi',
+        'salute',
+        'thumb_up',
+        'yes',
+        'no',
+        'dance',
+        'angry',
+        'cough',
+        'guide',
+        'Idle_cup',
+        'cup_hand_over',
+        'cup_receive',
+        'talk_1',
+        'cashier',
+        'joy',
+        'disapointment',
+        'make',
+      ]);
     }
   }, [names, setAnimations]);
 
@@ -40,6 +65,9 @@ const GlbLoader = ({
     if (!isAnimatedTarget || !playAnimation) return;
 
     Object.values(actions).forEach((a) => a?.stop());
+
+    console.log('playAnimation', playAnimation);
+    console.log('playAnimation', actions);
 
     if (actions[playAnimation]) {
       actions[playAnimation]?.reset().play();

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 const ChatBot = ({
   animations,
@@ -12,15 +12,78 @@ const ChatBot = ({
     { role: 'system', content: '챗봇에 오신 걸 환영합니다!' },
   ]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    console.log(currentAnimation, 'currentAnimation');
+  }, [currentAnimation]);
+
+  const playTTS = async (text: string) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      const response = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${
+          import.meta.env.VITE_TTS_APIKEY
+        }`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: { text },
+            voice: { languageCode: 'ko-KR', name: 'ko-KR-Standard-A' },
+            audioConfig: { audioEncoding: 'MP3' },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.audioContent) {
+        const audioSrc = 'data:audio/mp3;base64,' + data.audioContent;
+        const audio = new Audio(audioSrc);
+        audioRef.current = audio;
+        audio.play();
+      } else {
+        console.error('No audio content returned', data);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+    }
+  };
 
   const systemPrompt = {
     role: 'system',
-    content: `You are a friendly barista AI assistant.
-    Answer customer questions politely and always append the most appropriate animation name at the end of your response in this format: [animation: animation_name].
-    ⚠️ Important: You **must always** include the animation tag at the end of your response, even if it's just [animation: idle].
-    If no specific animation fits the context, use the default animation: idle.
-    Available animations: ${animations.join(', ')}.
-    Example: "I'll make your coffee right away! [animation: makeCoffee]"`,
+    content: `You are a polite Starbucks barista in New York, role-playing in a cafe setting.
+
+When taking an order, always ask:
+1. Drink type  
+2. Size (Tall, Grande, Venti) and temperature (iced/hot)  
+3. Customizations (milk type, extra shot, etc.)
+
+Once the customer finishes ordering and the drink is being made, respond with:
+[animation: make]
+
+End **every** response with an appropriate animation tag:
+[animation: animation_name]
+
+If you're unsure which to use, fall back to:
+[animation: talk_1]
+
+You must choose the animation that best matches the tone or situation.
+
+Available animations: ${animations.join(', ')}
+
+Examples:
+- "Sorry, we don't have oat milk today." → [animation: disapointment]  
+- "I'll make your coffee right away!" → [animation: make]
+`,
   };
 
   const callGPT = async (prompt: string) => {
@@ -48,13 +111,13 @@ const ChatBot = ({
     const reader = res.body?.getReader();
     const decoder = new TextDecoder('utf-8');
 
-    let rawReply = ''; // 전체
-    let visibleReply = ''; // 애니메이션 제외
+    let rawReply = '';
+    let visibleReply = '';
 
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: prompt },
-      { role: 'assistant', content: '' }, // 실시간 갱신될 부분
+      { role: 'assistant', content: '' },
     ]);
 
     while (true) {
@@ -76,15 +139,10 @@ const ChatBot = ({
         if (delta) {
           rawReply += delta;
           visibleReply = rawReply.split('[')?.[0];
-          // console.log(rawReply);
 
           setMessages((prev) => {
             const updated = [...prev];
-            const lastIndex = updated.length - 1;
-            updated[lastIndex] = {
-              ...updated[lastIndex],
-              content: visibleReply,
-            };
+            updated[updated.length - 1].content = visibleReply;
             return updated;
           });
         }
@@ -92,12 +150,11 @@ const ChatBot = ({
       }
     }
 
-    // 애니메이션 태그 추출
     const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
     const animation = animationMatch ? animationMatch[1].trim() : null;
 
-    // console.log(animationMatch);
-
+    await playTTS(visibleReply);
+    setCurrentAnimation(animation);
     setPlayAnimation(animation || null);
     setLoading(false);
   };
@@ -107,6 +164,13 @@ const ChatBot = ({
     if (!input.trim()) return;
     callGPT(input);
     setInput('');
+  };
+
+  const handleEndChat = () => {
+    setMessages([{ role: 'system', content: '챗봇에 오신 걸 환영합니다!' }]);
+    setInput('');
+    setCurrentAnimation(null);
+    setPlayAnimation('idle');
   };
 
   return (
@@ -126,6 +190,13 @@ const ChatBot = ({
           ))}
         {loading && <div className="chatbot-message assistant">로딩 중...</div>}
       </div>
+
+      {currentAnimation === 'make' && (
+        <button onClick={handleEndChat} style={{ marginTop: '10px' }}>
+          ☕ 주문 완료! 채팅 끝내기
+        </button>
+      )}
+
       <form onSubmit={onSubmit} className="chatbot-form">
         <input
           value={input}
