@@ -95,68 +95,77 @@ Examples:
 
     setLoading(true);
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: chatMessages,
-        stream: true,
-      }),
-    });
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: chatMessages,
+          stream: true,
+        }),
+      });
 
-    const reader = res.body?.getReader();
-    const decoder = new TextDecoder('utf-8');
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
 
-    let rawReply = '';
-    let visibleReply = '';
+      let rawReply = '';
+      let visibleReply = '';
 
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', content: prompt },
-      { role: 'assistant', content: '' },
-    ]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: '' },
+      ]);
 
-    while (true) {
-      const { done, value } = await reader!.read();
-      if (done) break;
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
 
-      const chunk = decoder.decode(value);
-      const lines = chunk
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line && line.startsWith('data:'));
+        const chunk = decoder.decode(value);
+        const lines = chunk
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line && line.startsWith('data:'));
 
-      for (const line of lines) {
-        const message = line.replace(/^data:\s*/, '');
-        if (message === '[DONE]') continue;
+        for (const line of lines) {
+          const message = line.replace(/^data:\s*/, '');
+          if (message === '[DONE]') continue;
 
-        const parsed = JSON.parse(message);
-        const delta = parsed.choices?.[0]?.delta?.content;
-        if (delta) {
-          rawReply += delta;
-          visibleReply = rawReply.split('[')?.[0];
+          const parsed = JSON.parse(message);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            rawReply += delta;
+            visibleReply = rawReply.split('[')?.[0];
 
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1].content = visibleReply;
-            return updated;
-          });
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1].content = visibleReply;
+              return updated;
+            });
+          }
+          await new Promise((res) => setTimeout(res, 50));
         }
-        await new Promise((res) => setTimeout(res, 50));
       }
+
+      const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
+      const animation = animationMatch ? animationMatch[1].trim() : null;
+
+      await playTTS(visibleReply);
+      setCurrentAnimation(animation);
+      setPlayAnimation(animation || null);
+      setLoading(false);
+    } catch (error) {
+      console.error('GPT 응답 처리 중 오류:', error);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다.' },
+      ]);
+      setLoading(false);
     }
-
-    const animationMatch = rawReply.match(/\[animation:\s*(.*?)\]/i);
-    const animation = animationMatch ? animationMatch[1].trim() : null;
-
-    await playTTS(visibleReply);
-    setCurrentAnimation(animation);
-    setPlayAnimation(animation || null);
-    setLoading(false);
   };
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -201,7 +210,9 @@ Examples:
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="메시지를 입력하세요"
+          placeholder={
+            loading ? '응답을 기다리는 중입니다...' : '메시지를 입력하세요'
+          }
           disabled={loading}
         />
         <button type="submit" disabled={loading || !input.trim()}>
